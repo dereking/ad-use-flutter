@@ -6,5 +6,6 @@ export 'src/ad_domain_config.dart';
 export 'src/ad_domain_directory_adapter.dart';
 export 'src/ad_domain_group.dart';
 export 'src/ad_domain_org_unit.dart';
+export 'src/ad_domain_settings_card.dart';
 export 'src/ad_domain_user.dart';
 export 'src/ldap_ad_domain_directory_adapter.dart';
