@@ -1,25 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class AdDomainSettingsValue {
-  const AdDomainSettingsValue({
-    this.enabled = false,
-    this.host = '',
-    this.port,
-    this.useSsl = false,
-    this.baseDn = '',
-    this.bindDn = '',
-    this.bindPassword = '',
-  });
-
-  final bool enabled;
-  final String host;
-  final int? port;
-  final bool useSsl;
-  final String baseDn;
-  final String bindDn;
-  final String bindPassword;
-}
+import 'ad_domain_settings_value.dart';
 
 class AdDomainSettingsCard extends StatefulWidget {
   const AdDomainSettingsCard({
