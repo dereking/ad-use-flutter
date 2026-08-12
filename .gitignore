@@ -6,3 +6,4 @@ coverage/
 *.iml
 .idea/
 .vscode/
+pubspec.lock
