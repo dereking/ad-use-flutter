@@ -67,6 +67,39 @@ class LdapAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
   }
 
   @override
+  Future<List<AdDomainUser>> searchUsersByEmailPrefix(String emailPrefix) {
+    final escaped = _escapeFilterValue(emailPrefix);
+    return _searchUsers(
+      '(&${_userClassFilter()}(|'
+      '(${config.emailAttribute}=$escaped*)'
+      '(${config.userPrincipalNameAttribute}=$escaped*)'
+      '))',
+      sizeLimit: config.searchSizeLimit,
+    );
+  }
+
+  @override
+  Future<List<AdDomainUser>> searchUsersByDisplayName(String name) {
+    final escaped = _escapeFilterValue(name);
+    return _searchUsers(
+      '(&${_userClassFilter()}(${config.displayNameAttribute}=*$escaped*))',
+      sizeLimit: config.searchSizeLimit,
+    );
+  }
+
+  @override
+  Future<List<AdDomainUser>> searchUsersByUsernamePrefix(String usernamePrefix) {
+    final escaped = _escapeFilterValue(usernamePrefix);
+    return _searchUsers(
+      '(&${_userClassFilter()}(|'
+      '(${config.usernameAttribute}=$escaped*)'
+      '(${config.userPrincipalNameAttribute}=$escaped*)'
+      '))',
+      sizeLimit: config.searchSizeLimit,
+    );
+  }
+
+  @override
   Future<List<AdDomainUser>> getAllUsers() {
     return _searchUsers(
       '(&${_userClassFilter()}(${config.emailAttribute}=*))',

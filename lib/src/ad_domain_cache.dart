@@ -15,6 +15,9 @@ class AdDomainCache {
   final Map<String, _CacheEntry<AdDomainUser>> _usersByEmail = {};
   final Map<String, _CacheEntry<AdDomainUser>> _usersByUsername = {};
   final Map<String, _CacheEntry<List<AdDomainUser>>> _usersByName = {};
+  final Map<String, _CacheEntry<List<AdDomainUser>>> _usersByEmailPrefix = {};
+  final Map<String, _CacheEntry<List<AdDomainUser>>> _usersByDisplayName = {};
+  final Map<String, _CacheEntry<List<AdDomainUser>>> _usersByUsernamePrefix = {};
   _CacheEntry<List<AdDomainOrgUnit>>? _organizationTree;
 
   AdDomainUser? getUserByEmail(String email) =>
@@ -25,6 +28,15 @@ class AdDomainCache {
 
   List<AdDomainUser>? getUsersByName(String name) =>
       _read(_usersByName[_normalize(name)]);
+
+  List<AdDomainUser>? getUsersByEmailPrefix(String emailPrefix) =>
+      _read(_usersByEmailPrefix[_normalize(emailPrefix)]);
+
+  List<AdDomainUser>? getUsersByDisplayName(String name) =>
+      _read(_usersByDisplayName[_normalize(name)]);
+
+  List<AdDomainUser>? getUsersByUsernamePrefix(String usernamePrefix) =>
+      _read(_usersByUsernamePrefix[_normalize(usernamePrefix)]);
 
   List<AdDomainOrgUnit>? get organizationTree => _read(_organizationTree);
 
@@ -52,6 +64,33 @@ class AdDomainCache {
     }
   }
 
+  void storeUsersByEmailPrefix(String emailPrefix, List<AdDomainUser> users) {
+    final expiresAt = _now().add(ttl);
+    _usersByEmailPrefix[_normalize(emailPrefix)] =
+        _CacheEntry(List.unmodifiable(users), expiresAt);
+    for (final user in users) {
+      storeUser(user);
+    }
+  }
+
+  void storeUsersByDisplayName(String name, List<AdDomainUser> users) {
+    final expiresAt = _now().add(ttl);
+    _usersByDisplayName[_normalize(name)] =
+        _CacheEntry(List.unmodifiable(users), expiresAt);
+    for (final user in users) {
+      storeUser(user);
+    }
+  }
+
+  void storeUsersByUsernamePrefix(String usernamePrefix, List<AdDomainUser> users) {
+    final expiresAt = _now().add(ttl);
+    _usersByUsernamePrefix[_normalize(usernamePrefix)] =
+        _CacheEntry(List.unmodifiable(users), expiresAt);
+    for (final user in users) {
+      storeUser(user);
+    }
+  }
+
   void storeOrganizationTree(List<AdDomainOrgUnit> tree) {
     _organizationTree = _CacheEntry(List.unmodifiable(tree), _now().add(ttl));
   }
@@ -60,6 +99,9 @@ class AdDomainCache {
     _usersByEmail.clear();
     _usersByUsername.clear();
     _usersByName.clear();
+    _usersByEmailPrefix.clear();
+    _usersByDisplayName.clear();
+    _usersByUsernamePrefix.clear();
     _organizationTree = null;
   }
 

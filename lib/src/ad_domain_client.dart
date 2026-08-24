@@ -52,6 +52,48 @@ class AdDomainClient {
     return users;
   }
 
+  /// Queries AD users by the email-address prefix (the domain username, i.e.
+  /// the part before `@`). Returns user details including organization.
+  Future<List<AdDomainUser>> searchUsersByEmailPrefix(String emailPrefix) async {
+    final normalized = emailPrefix.trim();
+    if (normalized.isEmpty) return const [];
+
+    final cached = _cache.getUsersByEmailPrefix(normalized);
+    if (cached != null) return cached;
+
+    final users = await _adapter.searchUsersByEmailPrefix(normalized);
+    _cache.storeUsersByEmailPrefix(normalized, users);
+    return users;
+  }
+
+  /// Queries AD users whose display name contains [name] (fuzzy match).
+  Future<List<AdDomainUser>> searchUsersByDisplayName(String name) async {
+    final normalized = name.trim();
+    if (normalized.isEmpty) return const [];
+
+    final cached = _cache.getUsersByDisplayName(normalized);
+    if (cached != null) return cached;
+
+    final users = await _adapter.searchUsersByDisplayName(normalized);
+    _cache.storeUsersByDisplayName(normalized, users);
+    return users;
+  }
+
+  /// Queries AD users whose domain username (sAMAccountName / UPN prefix)
+  /// starts with [usernamePrefix].
+  Future<List<AdDomainUser>> searchUsersByUsernamePrefix(
+      String usernamePrefix) async {
+    final normalized = usernamePrefix.trim();
+    if (normalized.isEmpty) return const [];
+
+    final cached = _cache.getUsersByUsernamePrefix(normalized);
+    if (cached != null) return cached;
+
+    final users = await _adapter.searchUsersByUsernamePrefix(normalized);
+    _cache.storeUsersByUsernamePrefix(normalized, users);
+    return users;
+  }
+
   Future<List<AdDomainOrgUnit>> getOrganizationTree() async {
     final cached = _cache.organizationTree;
     if (cached != null) return cached;

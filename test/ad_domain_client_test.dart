@@ -1,6 +1,30 @@
 import 'package:ad_use_flutter/ad_use_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+final _users = const [
+  AdDomainUser(
+    distinguishedName:
+        'CN=Alice Zhang,OU=Engineering,OU=Shanghai,DC=example,DC=com',
+    username: 'alice.zhang',
+    userPrincipalName: 'alice.zhang@example.com',
+    email: 'alice@example.com',
+    displayName: 'Alice Zhang',
+    commonName: 'Alice Zhang',
+    department: 'Engineering',
+    title: 'Engineer',
+  ),
+  AdDomainUser(
+    distinguishedName: 'CN=Bob Li,OU=Sales,DC=example,DC=com',
+    username: 'bob.li',
+    userPrincipalName: 'bob.li@example.com',
+    email: 'bob@example.com',
+    displayName: 'Bob Li',
+    commonName: 'Bob Li',
+    department: 'Sales',
+    title: 'Salesperson',
+  ),
+];
+
 void main() {
   group('AdDomainClient', () {
     test('gets user details by email and caches all returned indexes',
@@ -68,6 +92,84 @@ void main() {
       expect(byEmail?.username, 'bob.li');
       expect(adapter.nameSearchCount, 1);
       expect(adapter.emailLookupCount, 0);
+    });
+
+    test('queries users by email-address prefix (domain username)', () async {
+      final adapter = FakeAdDomainDirectoryAdapter(
+        users: _users,
+      );
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+        ),
+        adapter: adapter,
+      );
+
+      final byPrefix = await client.searchUsersByEmailPrefix('alice');
+      final byEmail = await client.getUserByEmail('alice@example.com');
+
+      expect(byPrefix.map((user) => user.email), ['alice@example.com']);
+      expect(byPrefix.single.department, 'Engineering');
+      expect(byPrefix.single.title, 'Engineer');
+      expect(byEmail?.username, 'alice.zhang');
+    });
+
+    test('queries users by display name', () async {
+      final adapter = FakeAdDomainDirectoryAdapter(
+        users: _users,
+      );
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+        ),
+        adapter: adapter,
+      );
+
+      final matches = await client.searchUsersByDisplayName('alice zhang');
+
+      expect(matches.map((user) => user.email), ['alice@example.com']);
+    });
+
+    test('queries users by domain username prefix', () async {
+      final adapter = FakeAdDomainDirectoryAdapter(
+        users: _users,
+      );
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+        ),
+        adapter: adapter,
+      );
+
+      final matches = await client.searchUsersByUsernamePrefix('alice.zh');
+      expect(matches.map((user) => user.email), ['alice@example.com']);
+    });
+
+    test('returns empty for blank email-prefix and display-name queries',
+        () async {
+      final adapter = FakeAdDomainDirectoryAdapter(users: _users);
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+        ),
+        adapter: adapter,
+      );
+
+      expect(await client.searchUsersByEmailPrefix(''), isEmpty);
+      expect(await client.searchUsersByDisplayName('   '), isEmpty);
+      expect(await client.searchUsersByUsernamePrefix(''), isEmpty);
     });
 
     test('builds and caches organization tree from user distinguished names',
@@ -234,6 +336,37 @@ class FakeAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
     final normalized = name.toLowerCase();
     return _users
         .where((user) => user.displayName.toLowerCase().contains(normalized))
+        .toList();
+  }
+
+  @override
+  Future<List<AdDomainUser>> searchUsersByEmailPrefix(
+      String emailPrefix) async {
+    final normalized = emailPrefix.toLowerCase();
+    return _users
+        .where((user) =>
+            user.email.toLowerCase().startsWith(normalized) ||
+            (user.username.toLowerCase().startsWith(normalized)))
+        .toList();
+  }
+
+  @override
+  Future<List<AdDomainUser>> searchUsersByDisplayName(String name) async {
+    final normalized = name.toLowerCase();
+    return _users
+        .where((user) => user.displayName.toLowerCase().contains(normalized))
+        .toList();
+  }
+
+  @override
+  Future<List<AdDomainUser>> searchUsersByUsernamePrefix(
+      String usernamePrefix) async {
+    final normalized = usernamePrefix.toLowerCase();
+    return _users
+        .where((user) =>
+            user.username.toLowerCase().startsWith(normalized) ||
+            (user.userPrincipalName?.toLowerCase().startsWith(normalized) ??
+                false))
         .toList();
   }
 
