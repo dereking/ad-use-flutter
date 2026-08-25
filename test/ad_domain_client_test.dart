@@ -302,6 +302,64 @@ void main() {
 
       expect(adapter.emailLookupCount, 2);
     });
+
+    test('validateUser returns success for a known user with password',
+        () async {
+      final adapter = FakeAdDomainDirectoryAdapter(users: _users);
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+          userDomain: 'example.com',
+        ),
+        adapter: adapter,
+      );
+
+      final result = await client.validateUser('alice.zhang', 'pass');
+
+      expect(result.success, isTrue);
+      expect(result.user?.email, 'alice@example.com');
+    });
+
+    test('validateUser returns invalid credentials for unknown user',
+        () async {
+      final adapter = FakeAdDomainDirectoryAdapter(users: _users);
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+        ),
+        adapter: adapter,
+      );
+
+      final result = await client.validateUser('nobody', 'pass');
+
+      expect(result.success, isFalse);
+      expect(result.status, AdDomainAuthStatus.invalidCredentials);
+    });
+
+    test('testConnection returns success when the bind account works',
+        () async {
+      final adapter = FakeAdDomainDirectoryAdapter(users: _users);
+      final client = AdDomainClient(
+        config: const AdDomainConfig(
+          host: 'ad.example.com',
+          bindDn: 'CN=svc,DC=example,DC=com',
+          bindPassword: 'secret',
+          baseDn: 'DC=example,DC=com',
+        ),
+        adapter: adapter,
+      );
+
+      final result = await client.testConnection();
+
+      expect(result.success, isTrue);
+      expect(result.status, AdDomainAuthStatus.success);
+    });
   });
 }
 
@@ -317,6 +375,21 @@ class FakeAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
 
   @override
   Future<bool> authenticate(String username, String password) async => true;
+
+  @override
+  Future<AdDomainAuthResult> validateUser(
+    String username,
+    String password,
+  ) async {
+    final user = _users.where((u) => u.username == username).firstOrNull;
+    if (user == null) return const AdDomainAuthResult.invalidCredentials();
+    if (password.isEmpty) return const AdDomainAuthResult.invalidCredentials();
+    return AdDomainAuthResult.success(user);
+  }
+
+  @override
+  Future<AdDomainAuthResult> testConnection() async =>
+      const AdDomainAuthResult.success();
 
   @override
   Future<AdDomainUser?> getUserByEmail(String email) async {

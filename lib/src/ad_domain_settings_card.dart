@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ad_domain_sdk.dart';
 import 'ad_domain_settings_value.dart';
 
 class AdDomainSettingsCard extends StatefulWidget {
@@ -9,11 +10,15 @@ class AdDomainSettingsCard extends StatefulWidget {
     required this.value,
     required this.onSave,
     this.isSaving = false,
+    this.savedMessage,
   });
 
   final AdDomainSettingsValue value;
   final Future<void> Function(AdDomainSettingsValue value) onSave;
   final bool isSaving;
+
+  /// 保存成功后展示的 SnackBar 文案；为 null 时不展示。
+  final String? savedMessage;
 
   @override
   State<AdDomainSettingsCard> createState() => _AdDomainSettingsCardState();
@@ -194,13 +199,34 @@ class _AdDomainSettingsCardState extends State<AdDomainSettingsCard> {
   }
 
   void _loadValue(AdDomainSettingsValue value) {
-    _enabled = value.enabled;
-    _useSsl = value.useSsl;
-    _hostController.text = value.host;
-    _portController.text = value.port?.toString() ?? '';
-    _baseDnController.text = value.baseDn;
-    _bindDnController.text = value.bindDn;
-    _bindPasswordController.text = value.bindPassword;
+    // 值为空（尚未配置）时回退到 ad sdk 初始化时 shell 指定的默认参数。
+    final effective = _effectiveValue(value);
+    _enabled = effective.enabled;
+    _useSsl = effective.useSsl;
+    _hostController.text = effective.host;
+    _portController.text = effective.port?.toString() ?? '';
+    _baseDnController.text = effective.baseDn;
+    _bindDnController.text = effective.bindDn;
+    _bindPasswordController.text = effective.bindPassword;
+  }
+
+  /// 当前值为空时使用 [AdDomainSdk.defaults] 预填，否则原样使用。
+  AdDomainSettingsValue _effectiveValue(AdDomainSettingsValue value) {
+    final hasValue = value.host.isNotEmpty ||
+        value.baseDn.isNotEmpty ||
+        value.bindDn.isNotEmpty;
+    if (hasValue) return value;
+    final defaults = AdDomainSdk.defaults;
+    if (defaults == null) return value;
+    return AdDomainSettingsValue(
+      enabled: defaults.enabled,
+      host: defaults.host,
+      port: defaults.port,
+      useSsl: defaults.useSsl,
+      baseDn: defaults.baseDn,
+      bindDn: defaults.bindDn,
+      bindPassword: defaults.bindPassword,
+    );
   }
 
   void _markDirty() {
@@ -227,6 +253,12 @@ class _AdDomainSettingsCardState extends State<AdDomainSettingsCard> {
       );
       if (mounted) {
         setState(() => _isDirty = false);
+        final savedMessage = widget.savedMessage;
+        if (savedMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(savedMessage)),
+          );
+        }
       }
     } finally {
       if (mounted) {

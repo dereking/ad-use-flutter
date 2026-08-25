@@ -1,7 +1,16 @@
+import 'ad_domain_auth_result.dart';
 import 'ad_domain_user.dart';
 
 abstract class AdDomainDirectoryAdapter {
   Future<bool> authenticate(String username, String password);
+
+  /// 校验域账号 + 密码：以 `用户名@userDomain`（或用户名本身）直接做 LDAP
+  /// bind，无需服务账号预搜索。
+  Future<AdDomainAuthResult> validateUser(String username, String password);
+
+  /// 用配置中的 bind 账号（bindDn/bindPassword）连接并绑定服务器，
+  /// 用于 AD 域设置保存时校验连接是否可用。
+  Future<AdDomainAuthResult> testConnection();
 
   Future<AdDomainUser?> getUserByEmail(String email);
 

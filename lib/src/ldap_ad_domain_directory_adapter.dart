@@ -1,6 +1,7 @@
 import 'package:asn1lib/asn1lib.dart';
 import 'package:dartdap/dartdap.dart';
 
+import 'ad_domain_auth_result.dart';
 import 'ad_domain_config.dart';
 import 'ad_domain_directory_adapter.dart';
 import 'ad_domain_user.dart';
@@ -12,23 +13,62 @@ class LdapAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
 
   @override
   Future<bool> authenticate(String username, String password) async {
-    if (username.trim().isEmpty || password.isEmpty) return false;
+    return (await validateUser(username, password)).success;
+  }
 
-    final user = await getUserByUsername(username);
-    final bindName = user?.distinguishedName ?? username;
+  @override
+  Future<AdDomainAuthResult> validateUser(
+    String username,
+    String password,
+  ) async {
+    final normalized = username.trim();
+    if (normalized.isEmpty || password.isEmpty) {
+      return const AdDomainAuthResult.invalidCredentials('账号或密码不能为空');
+    }
+    final bindName = _userBindName(normalized);
+    return _bind(bindName, password, rawBindName: true);
+  }
+
+  @override
+  Future<AdDomainAuthResult> testConnection() {
+    return _bind(config.bindDn, config.bindPassword);
+  }
+
+  /// 用户绑定名：已是 UPN（含 `@`）则原样使用，否则拼成 `用户名@userDomain`。
+  String _userBindName(String username) {
+    if (username.contains('@')) return username;
+    final domain = config.userDomain;
+    if (domain == null || domain.trim().isEmpty) return username;
+    return '$username@$domain';
+  }
+
+  /// 打开连接并绑定 [bindDn]；区分「无法连接」与「账号/密码错误」。
+  Future<AdDomainAuthResult> _bind(
+    String bindDn,
+    String password, {
+    bool rawBindName = false,
+  }) async {
     final connection = _createConnection(
-      bindDn: bindName,
+      bindDn: bindDn,
       password: password,
+      rawBindName: rawBindName,
     );
-
     try {
       await connection.open();
+    } catch (_) {
+      return AdDomainAuthResult.unreachable('无法连接 AD 服务器');
+    }
+    try {
       final result = await connection.bind();
-      return result.resultCode == ResultCode.OK;
-    } on LdapException {
-      return false;
+      return result.resultCode == ResultCode.OK
+          ? const AdDomainAuthResult.success()
+          : const AdDomainAuthResult.invalidCredentials();
+    } catch (_) {
+      return const AdDomainAuthResult.invalidCredentials('账号或密码错误');
     } finally {
-      await connection.close();
+      try {
+        await connection.close();
+      } catch (_) {}
     }
   }
 
@@ -128,6 +168,9 @@ class LdapAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
       );
       final users = <AdDomainUser>[];
       await for (final entry in result.stream) {
+        // 跳过目录分区引用（referral）条目，例如 Configuration /
+        // DomainDnsZones / ForestDnsZones，它们没有真实用户属性。
+        if (entry.hasReferrals) continue;
         users.add(_mapEntry(entry));
       }
       return users;
@@ -139,12 +182,15 @@ class LdapAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
   LdapConnection _createConnection({
     required String bindDn,
     required String password,
+    bool rawBindName = false,
   }) {
     return LdapConnection(
       host: config.host,
       port: config.port,
       ssl: config.useSsl,
-      bindDN: DN(bindDn),
+      bindDN: rawBindName
+          ? DN.fromOctetString(ASN1OctetString(bindDn))
+          : DN(bindDn),
       password: password,
     );
   }

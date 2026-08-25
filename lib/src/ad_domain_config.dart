@@ -28,6 +28,7 @@ class AdDomainConfig {
     this.cacheTtl = const Duration(minutes: 30),
     this.maxCachedUsers = 1000,
     this.searchSizeLimit = 100,
+    this.userDomain,
   });
 
   final String host;
@@ -55,6 +56,10 @@ class AdDomainConfig {
   final Duration cacheTtl;
   final int maxCachedUsers;
   final int searchSizeLimit;
+
+  /// 用户所属域（如 `it2004.gree.com.cn`），用于直接 bind 校验时构造
+  /// `用户名@域` 形式的绑定名；为空时直接用用户名绑定。
+  final String? userDomain;
 
   List<String> get userAttributes => [
         emailAttribute,
