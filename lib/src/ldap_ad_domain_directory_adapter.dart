@@ -55,8 +55,8 @@ class LdapAdDomainDirectoryAdapter implements AdDomainDirectoryAdapter {
     );
     try {
       await connection.open();
-    } catch (_) {
-      return AdDomainAuthResult.unreachable('无法连接 AD 服务器');
+    } catch (e) {
+      return AdDomainAuthResult.unreachable('无法连接 AD 服务器：$e');
     }
     try {
       final result = await connection.bind();
